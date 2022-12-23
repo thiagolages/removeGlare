@@ -1,4 +1,6 @@
-import cv2
+from aruco_v2 import PrecisionLanding
+
+import cv2, sys
 import numpy as np
 from skimage import measure
 
@@ -29,29 +31,66 @@ def create_mask(image):
     return mask
 
 
+def assert_exit(condition, err_message):
+    try:
+        assert condition
+    except AssertionError:
+        sys.exit(err_message)
+
 if __name__ == '__main__':
 
-    #img_filename = 'image.jpeg'
+    assert_exit(len(sys.argv) >= 2, "Wrong number of parameters. Usage: python main.py <image/video/cam> <image or video name>")
     
-    #img_filename = 'video_print.png'
+    input_option = sys.argv[1] # video, image or cam
 
-    #src = cv2.imread(img_filename)
-
-    cap = cv2.videoCapture('videos/01_final/mkv')
-
+    if (input_option == "video" or input_option == "image"):
+        assert_exit(len(sys.argv) == 3, "You must specify image or video filename. Usage: python main.py <image/video/cam> <image or video name>")
+        filename = sys.argv[2]
+        cap = cv2.VideoCapture(filename)
+        #cap = cv2.VideoCapture('videos/02_final.mkv')
+    else:
+        cap = cv2.VideoCapture(2)
     
+    aruco = PrecisionLanding(12, 4) # altitude, cameraID (wont be used)
 
-    inpaintMask = create_mask(src)
+    loopFlag = True
 
-    inpaintRadius = 1
+    while loopFlag:
 
-    flags = cv2.INPAINT_TELEA #cv2.INPAINT_NS
+        if (input_option == "image"):
+            frame = cv2.imread(filename)
+        else:
+            loopFlag = cap.isOpened()
+            ret, frame = cap.read()
+            
+            # if frame is read correctly ret is True
+            if not ret:
+                #print("Can't receive frame (stream end?). Exiting ...")
+                break
 
-    dst = cv2.inpaint( src, inpaintMask,inpaintRadius, flags)
+        #frame = cv2.imread("frames/frame2755.jpg")
 
-    while True:
-        cv2.imshow('original', src)
-        cv2.imshow('result', dst)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        frame = aruco.trackArucos(frame)
+        
+        #clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        #result1 = clahe.apply(gray)
+        
+        #result1 = aruco.trackArucos(result1)
+        #result1 = cv2.cvtColor(result1, cv2.COLOR_GRAY2BGR)
+
+        # inpaintMask = create_mask(src)
+
+        # inpaintRadius = 1
+
+        # flags = cv2.INPAINT_TELEA #cv2.INPAINT_NS
+
+        # dst = cv2.inpaint( src, inpaintMask,inpaintRadius, flags)
+
+
+        cv2.imshow('original', frame)
+        #cv2.imshow('CLAHE', result1)
 
         if cv2.waitKey(1) == ord('q'):
+            loopFlag = False
             break
